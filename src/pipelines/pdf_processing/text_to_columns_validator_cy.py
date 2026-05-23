@@ -30,12 +30,14 @@ spark = SparkSession.builder.appName("CY_Extractor_Validator").getOrCreate()
 
 # ------------------------------------------------------------------------------
 # 2 Schema Definition
+# Nota: broker_rep y broker_rep_phone son extraidos por el pipeline pero
+# excluidos del ground truth validation para cumplir con las indicaciones generales del taller
+# (nada de información personal de personas naturales en el repo publico).
 # ------------------------------------------------------------------------------
 fields = [
     "source_file",
     "broker_name", "broker_phone", "broker_email",
     "broker_address", "broker_city", "broker_state", "broker_zipcode",
-    "broker_rep", "broker_rep_phone",
     "loadConfirmationNumber", "totalCarrierPay",
     "carrier_name", "carrier_usdot", "carrier_email",
     "pickup_facility_1", "pickup_address_1", "pickup_city_1",
@@ -49,11 +51,17 @@ schema = T.StructType([T.StructField(f, T.StringType()) for f in fields])
 
 # ------------------------------------------------------------------------------
 # 3 Ground Truth Record
-# Source: 1679676366011_CY FL-GA.pdf (Load 28861101)
+# Pdf Source: 1679676366011_CY FL-GA.pdf (Load 28861101)
 # Author: Yan Caicedo
+#
+# Campos Excluidos del validacion (información de personas natural):
+#   - broker_rep: nombre del rep del broker (persona natural)
+#   - broker_rep_phone: telefono del rep del broker (persona natural)
+# Estos campos son extraidos y guardados por el pipeline pero se omiten en este paso
+# para cumplir con las indicaciones generales del taller.
 # ------------------------------------------------------------------------------
 truth_record = {
-    "source_file": "dbfs:/volumes/logistics/default/raw/txt/source=cy/1679676366011_cy%20fl-ga.txt",
+    "source_file": "dbfs:/volumes/logistics/default/raw/txt/source=cy/1679676366011_cy%20fl-ga.txt", #se agrega %20 para forzar los espacios
     "broker_name": "Coyote Logistics, LLC",
     "broker_phone": "877-626-9683",
     "broker_email": "CarrierInvoices@coyote.com",
@@ -61,8 +69,6 @@ truth_record = {
     "broker_city": "Alpharetta",
     "broker_state": "GA",
     "broker_zipcode": "30005",
-    "broker_rep": "Tamaz Bazgadze",
-    "broker_rep_phone": "+1 (423) 385 3805 x2246",
     "loadConfirmationNumber": "28861101",
     "totalCarrierPay": "600.00",
     "carrier_name": "GTT Freight Corp",
@@ -117,7 +123,7 @@ results = []
 if not target_rows:
     logger.error(f"No record found for loadConfirmationNumber={load_id}")
     for field in schema.fieldNames():
-        results.append((field, "❌ Missing record", truth_record.get(field), None))
+        results.append((field, "FAIL Missing record", truth_record.get(field), None))
 else:
     logger.info(f"Found record for loadConfirmationNumber={load_id}")
     target_values = target_rows[0].asDict()
@@ -126,7 +132,7 @@ else:
         target_val = target_values.get(field)
         norm_truth = str(truth_val).strip().lower() if truth_val else None
         norm_target = str(target_val).strip().lower() if target_val else None
-        status = "✅ Match" if norm_truth == norm_target else "❌ Mismatch"
+        status = "PASS Match" if norm_truth == norm_target else "FAIL Mismatch"
         results.append((field, status, truth_val, target_val))
 
 # ------------------------------------------------------------------------------
@@ -134,19 +140,19 @@ else:
 # ------------------------------------------------------------------------------
 logger.info(f"Validation results for loadConfirmationNumber={load_id}:")
 for field, status, truth, target in results:
-    if status == "✅ Match":
-        logger.info(f"{field:30} | {status:10} | truth='{truth}' | target='{target}'")
+    if status.startswith("PASS"):
+        logger.info(f"{field:30} | {status:15} | truth='{truth}' | target='{target}'")
     else:
-        logger.error(f"{field:30} | {status:10} | truth='{truth}' | target='{target}'")
+        logger.error(f"{field:30} | {status:15} | truth='{truth}' | target='{target}'")
 
 # ------------------------------------------------------------------------------
 # 8 Fail Pipeline if Errors Detected
 # ------------------------------------------------------------------------------
-errors = [r for r in results if r[1].startswith("❌")]
+errors = [r for r in results if r[1].startswith("FAIL")]
 if errors:
     logger.error(f"Validation failed for {len(errors)} fields")
     for field, status, truth, target in errors:
         logger.error(f"  - {field}: expected='{truth}' got='{target}'")
     raise ValueError(f"Validation failed for {len(errors)} fields")
 else:
-    logger.info("✅ All fields match perfectly.")
+    logger.info("All fields match perfectly. Validation PASSED.")
