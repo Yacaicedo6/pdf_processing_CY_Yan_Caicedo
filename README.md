@@ -2,8 +2,8 @@
 
 Taller Databricks — Parte 1 | Maestria en Ciencia de Datos  
 **Autor:** Yan Caicedo  
-**Rama principal:** `dev`
-**Materia:** Procesamiento en Nube/DataBricks
+**Rama principal:** `dev`  
+**Materia:** Procesamiento en Nube/DataBricks  
 **MCD ICESI**
 
 ---
