@@ -53,7 +53,7 @@ schema = T.StructType([T.StructField(f, T.StringType()) for f in fields])
 # Author: Yan Caicedo
 # ------------------------------------------------------------------------------
 truth_record = {
-    "source_file": "dbfs:/Volumes/logistics/default/raw/txt/source=CY/1679676366011_CY FL-GA.txt",
+    "source_file": "dbfs:/volumes/logistics/default/raw/txt/source=cy/1679676366011_cy%20fl-ga.txt",
     "broker_name": "Coyote Logistics, LLC",
     "broker_phone": "877-626-9683",
     "broker_email": "CarrierInvoices@coyote.com",
